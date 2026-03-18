@@ -1,0 +1,29 @@
+#compdef snippet
+# Zsh completion script for snippet tool
+
+_snippet() {
+    local -a snippets opts
+    local snippet_dir=${SNIPPET_DIR:-"${HOME}/.local/share/snippet"}
+
+    opts=(
+        '(-c --create)'{-c,--create}'[Create a new snippet]:name:'
+        '(-d --dir)'{-d,--dir}'[Directory containing snippet files]:directory:_directories'
+        '(-l --list)'{-l,--list}'[List all available snippets]'
+        '(-s --separator)'{-s,--separator}'[Separator to use between snippets]:separator:'
+        '(-h --help)'{-h,--help}'[Show help message]'
+        '*:snippet file:->snippetfiles'
+    )
+
+    _arguments -s -S $opts
+
+    case "$state" in
+        snippetfiles)
+            if [[ -d "$snippet_dir" ]]; then
+                snippets=( ${snippet_dir}/*(:t) )
+                _describe 'snippet file' snippets
+            fi
+            ;;
+    esac
+}
+
+_snippet "$@"

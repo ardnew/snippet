@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+
+show_usage() {
+    cat <<- USAGE
+			Usage: snippet [OPTIONS] <file1> [file2 ...]
+			       snippet [OPTIONS] -c NAME [TEXT...]
+			
+			  Print contents of files from the snippet directory.
+			
+			OPTIONS
+			
+			  -c, --create NAME [TEXT...]
+			                          Create a new snippet with NAME,
+			                            containing all TEXT args, if provided;
+			                            otherwise, content initialized via stdin.
+			                            Must be the last CLI option given;
+			                            all following arguments are TEXT content.
+			  -d, --dir DIR           Directory containing snippet files
+			                            (default: "$SNIPPET_DIR").
+			                          Last value wins if repeated.
+			  -l, --list              List all available snippet files
+			  -s, --separator SEP     Use SEP as separator between files
+			                            (default: "\n")
+			  -h, --help              Show this help message
+			
+			  Options other than -c may appear in any order.  -c must be
+			  the last option because every argument after NAME is consumed
+			  as snippet content.
+			
+			EXAMPLES
+			
+			  # Print contents of angl and mult separated by the default separator
+			  snippet angl mult
+			
+			  # Print contents of angl and mult separated by newlines and dashes
+			  snippet -s \$'\n---\n' angl mult
+			
+			  # List all available snippets
+			  snippet --list
+			
+			  # Create a snippet from arguments
+			  snippet --create shrug '¯\_(°_o)_/¯'
+			
+			  # Create a snippet from stdin
+			  echo '(╯°□°）╯︵ ┻━┻' | snippet -c flip
+			  snippet -c relax < <( echo '┬─┬ ノ( ゜-゜ノ)' )
+			
+			  # Use a custom directory with --create
+			  snippet -d ~/proverbs --create heday \
+          Buy a man eat fish, he day, teach fish man to a lifetime
+		USAGE
+}
+
+main() {
+    local dir="${SNIPPET_DIR}"
+    local separator=$'\n'
+    local list_mode=false
+    local create_name=""
+    local files=()
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -c|--create)
+                shift
+                [[ -n "$1" ]] || {
+                    echo "Error: --create requires a name argument" >&2
+                    exit 1
+                }
+                create_name="$1"
+                shift
+                # Remaining args are content; if none, will read stdin later
+                if [[ $# -gt 0 ]]; then
+                    create_content="$*"
+                fi
+                break
+                ;;
+
+            -d|--dir)
+                shift
+                [[ -n "$1" ]] || {
+                  echo "Error: --dir requires an argument" >&2
+                  exit 1
+                }
+                dir="$1"
+                ;;
+
+            -l|--list)
+                list_mode=true
+                ;;
+
+            -s|--separator)
+                shift
+                [[ -n "$1" ]] || {
+                    echo "Error: --separator requires an argument" >&2
+                    exit 1
+                }
+                separator="$1"
+                ;;
+
+            -h|--help)
+                show_usage
+                exit 0
+                ;;
+
+            -*)
+                echo "Error: Unknown option: $1" >&2
+                show_usage >&2
+                exit 1
+                ;;
+
+            *)
+                files+=("$1")
+                ;;
+        esac
+        shift
+    done
+
+    [[ -d "$dir" ]] || {
+        echo "Error: snippet directory not found: $dir" >&2
+        exit 1
+    }
+
+    if [[ -n "$create_name" ]]; then
+        local filepath="$dir/$create_name"
+        [[ ! -e "$filepath" ]] || {
+            echo "Error: snippet already exists: $create_name" >&2
+            exit 1
+        }
+        if [[ -n "${create_content+set}" ]]; then
+            printf '%s' "$create_content" > "$filepath"
+        else
+            cat > "$filepath"
+        fi
+        exit 0
+    fi
+
+    [[ "$list_mode" != true ]] || {
+    	ls -1 "$dir" 2>/dev/null | sort
+        exit 0
+    }
+
+    [[ ${#files[@]} -gt 0 ]] || {
+        echo "Error: No files specified" >&2
+        show_usage >&2
+        exit 1
+    }
+
+    local first=true
+    for file in "${files[@]}"; do
+        local filepath="$dir/$file"
+
+        [[ -f "$filepath" ]] || {
+            echo "Error: File not found: $file" >&2
+            exit 1
+        }
+
+        [[ "$first" == true ]] || 
+            printf "%s" "$separator"
+
+        first=false
+
+        cat "$filepath"
+    done
+}
+
+main "$@"
