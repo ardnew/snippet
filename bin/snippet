@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 
+_id=$( basename "${0}" )
+
 show_usage() {
     cat <<- USAGE
-			Usage: snippet [OPTIONS] <file1> [file2 ...]
-			       snippet [OPTIONS] -c NAME [TEXT...]
+			Usage: ${_id} [OPTIONS] <file1> [file2 ...]
+			       ${_id} [OPTIONS] -c NAME [TEXT...]
 			
 			  Print contents of files from the snippet directory.
 			
@@ -30,29 +32,31 @@ show_usage() {
 			EXAMPLES
 			
 			  # Print contents of angl and mult separated by the default separator
-			  snippet angl mult
+			  ${_id} angl mult
 			
 			  # Print contents of angl and mult separated by newlines and dashes
-			  snippet -s \$'\n---\n' angl mult
+			  ${_id} -s \$'\n---\n' angl mult
 			
 			  # List all available snippets
-			  snippet --list
+			  ${_id} --list
 			
 			  # Create a snippet from arguments
-			  snippet --create shrug '¯\_(°_o)_/¯'
+			  ${_id} --create shrug '¯\_(°_o)_/¯'
 			
 			  # Create a snippet from stdin
-			  echo '(╯°□°）╯︵ ┻━┻' | snippet -c flip
-			  snippet -c relax < <( echo '┬─┬ ノ( ゜-゜ノ)' )
+			  echo '(╯°□°）╯︵ ┻━┻' | ${_id} -c flip
+			  ${_id} -c relax < <( echo '┬─┬ ノ( ゜-゜ノ)' )
 			
 			  # Use a custom directory with --create
-			  snippet -d ~/proverbs --create heday \
-          Buy a man eat fish, he day, teach fish man to a lifetime
+			  ${_id} -d ~/proverbs --create heday \\
+			    Buy a man eat fish, he day, teach fish man to a lifetime
 		USAGE
 }
 
 main() {
-    local dir="${SNIPPET_DIR}"
+    local dir=${SNIPPET_DIR:-}
+    [ -d "${dir}" ] || dir="${XDG_DATA_HOME:-"${HOME}/.local/share"}/snippet"
+
     local separator=$'\n'
     local list_mode=false
     local create_name=""
@@ -63,7 +67,7 @@ main() {
             -c|--create)
                 shift
                 [[ -n "$1" ]] || {
-                    echo "Error: --create requires a name argument" >&2
+                    echo "error: --create requires a name argument" >&2
                     exit 1
                 }
                 create_name="$1"
@@ -78,7 +82,7 @@ main() {
             -d|--dir)
                 shift
                 [[ -n "$1" ]] || {
-                  echo "Error: --dir requires an argument" >&2
+                  echo "error: --dir requires an argument" >&2
                   exit 1
                 }
                 dir="$1"
@@ -91,7 +95,7 @@ main() {
             -s|--separator)
                 shift
                 [[ -n "$1" ]] || {
-                    echo "Error: --separator requires an argument" >&2
+                    echo "error: --separator requires an argument" >&2
                     exit 1
                 }
                 separator="$1"
@@ -103,7 +107,7 @@ main() {
                 ;;
 
             -*)
-                echo "Error: Unknown option: $1" >&2
+                echo "error: unknown option: $1" >&2
                 show_usage >&2
                 exit 1
                 ;;
@@ -116,14 +120,14 @@ main() {
     done
 
     [[ -d "$dir" ]] || {
-        echo "Error: snippet directory not found: $dir" >&2
+        echo "error: snippet directory not found: $dir" >&2
         exit 1
     }
 
     if [[ -n "$create_name" ]]; then
         local filepath="$dir/$create_name"
         [[ ! -e "$filepath" ]] || {
-            echo "Error: snippet already exists: $create_name" >&2
+            echo "error: snippet already exists: $create_name" >&2
             exit 1
         }
         if [[ -n "${create_content+set}" ]]; then
@@ -140,7 +144,7 @@ main() {
     }
 
     [[ ${#files[@]} -gt 0 ]] || {
-        echo "Error: No files specified" >&2
+        echo "error: no files specified" >&2
         show_usage >&2
         exit 1
     }
@@ -150,7 +154,7 @@ main() {
         local filepath="$dir/$file"
 
         [[ -f "$filepath" ]] || {
-            echo "Error: File not found: $file" >&2
+            echo "error: file not found: $file" >&2
             exit 1
         }
 
